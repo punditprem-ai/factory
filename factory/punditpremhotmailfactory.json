@@ -1,0 +1,15 @@
+{
+	"name": "punditpremhotmailfactory",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "uksouth",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "9bd7abb5-a9f5-4aac-b62d-f90413130857",
+		"tenantId": "09d8c1f2-325c-40a0-96c0-532304956c8f"
+	}
+}
