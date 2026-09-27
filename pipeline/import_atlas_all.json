@@ -1,0 +1,12 @@
+{
+	"name": "import_atlas_all",
+	"properties": {
+		"parameters": {
+			"sys_run_type": {
+				"type": "string",
+				"defaultValue": "eod"
+			}
+		},
+		"annotations": []
+	}
+}
