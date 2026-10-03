@@ -8,7 +8,7 @@
 			},
 			"dwh_ldw": {
 				"type": "string",
-				"value": "dhw_ldw"
+				"value": "ldw"
 			}
 		},
 		"trustModeClaimForMi": {
