@@ -142,7 +142,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@activity('Get last file stamp').output.firstRow.watermark_datetime<>@activity('Get Latest file stamp').output.lastModified",
+						"value": "True",
 						"type": "Expression"
 					},
 					"ifTrueActivities": [
