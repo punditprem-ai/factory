@@ -1,5 +1,5 @@
 {
-	"name": "customers",
+	"name": "csv_customer",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "atlas_adls2",

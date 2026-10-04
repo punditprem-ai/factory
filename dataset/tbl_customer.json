@@ -1,0 +1,12 @@
+{
+	"name": "tbl_customer",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "dwh_ldw",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": []
+	}
+}
