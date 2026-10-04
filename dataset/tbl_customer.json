@@ -9,8 +9,8 @@
 		"type": "AzureSqlTable",
 		"schema": [],
 		"typeProperties": {
-			"schema": "customers",
-			"table": ""
+			"schema": "atlas",
+			"table": "customers"
 		}
 	}
 }
