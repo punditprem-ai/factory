@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "punditpremhotmailfactory"
+		},
+		"atlas_adls2_properties_typeProperties_url": {
+			"value": "https://punditpremhotmailgeneral.dfs.core.windows.net/"
+		},
+		"kv_properties_typeProperties_baseUrl": {
+			"value": "https://kvpunditpremhotmail.vault.azure.net/"
+		},
+		"dwh_ldw_properties_typeProperties_server": {
+			"value": "punditpremhotmail.database.windows.net"
+		},
+		"dwh_ldw_properties_typeProperties_database": {
+			"value": "ldw"
+		},
+		"dwh_ldw_properties_typeProperties_servicePrincipalId": {
+			"value": "408bcee5-7e82-4a2d-8cd0-aed0a7a50e76"
+		},
+		"dwh_ldw_properties_typeProperties_tenant": {
+			"value": "09d8c1f2-325c-40a0-96c0-532304956c8f"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}

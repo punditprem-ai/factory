@@ -1,0 +1,10 @@
+{
+	"dwh_server": {
+		"type": "string",
+		"value": "punditpremhotmail.database.windows.net"
+	},
+	"dwh_ldw": {
+		"type": "string",
+		"value": "ldw"
+	}
+}
