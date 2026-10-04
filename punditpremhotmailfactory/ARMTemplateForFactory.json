@@ -11,10 +11,6 @@
 			"type": "string",
 			"defaultValue": "https://punditpremhotmailgeneral.dfs.core.windows.net/"
 		},
-		"kv_properties_typeProperties_baseUrl": {
-			"type": "string",
-			"defaultValue": "https://kvpunditpremhotmail.vault.azure.net/"
-		},
 		"dwh_ldw_properties_typeProperties_server": {
 			"type": "string",
 			"defaultValue": "punditpremhotmail.database.windows.net"
@@ -30,6 +26,10 @@
 		"dwh_ldw_properties_typeProperties_tenant": {
 			"type": "string",
 			"defaultValue": "09d8c1f2-325c-40a0-96c0-532304956c8f"
+		},
+		"kv_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://kvpunditpremhotmail.vault.azure.net/"
 		}
 	},
 	"variables": {
@@ -45,7 +45,14 @@
 					{
 						"name": "Customers",
 						"type": "Copy",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "Check if new file",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -59,7 +66,7 @@
 								"type": "DelimitedTextSource",
 								"storeSettings": {
 									"type": "AzureBlobFSReadSettings",
-									"fileListPath": "root/atlas/customers.csv",
+									"recursive": true,
 									"enablePartitionDiscovery": false
 								},
 								"formatSettings": {
@@ -68,7 +75,13 @@
 							},
 							"sink": {
 								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
+								"writeBehavior": "upsert",
+								"upsertSettings": {
+									"useTempDB": true,
+									"keys": [
+										"name"
+									]
+								},
 								"sqlWriterUseTableLock": false,
 								"tableOption": "autoCreate",
 								"disableMetricsCollection": false
@@ -97,6 +110,121 @@
 								"parameters": {}
 							}
 						]
+					},
+					{
+						"name": "Get Latest file stamp",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "csv_customer",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"lastModified"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Get last file stamp",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "watermark",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Check if new file",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "Get Latest file stamp",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Get last file stamp",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@activity('Get last file stamp').output.firstRow.watermark_datetime<>@activity('Get Latest file stamp').output.lastModified",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "update watermark",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[update_watermark]",
+										"storedProcedureParameters": {
+											"table_name": {
+												"value": "atlas.customers",
+												"type": "String"
+											},
+											"watermark_datetime": {
+												"value": {
+													"value": "@activity('Get Latest file stamp').output.lastModified",
+													"type": "Expression"
+												},
+												"type": "Datetime"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "dwh_ldw",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
 					}
 				],
 				"policy": {
@@ -112,7 +240,59 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/csv_customer')]",
-				"[concat(variables('factoryId'), '/datasets/tbl_customer')]"
+				"[concat(variables('factoryId'), '/datasets/tbl_customer')]",
+				"[concat(variables('factoryId'), '/datasets/watermark')]",
+				"[concat(variables('factoryId'), '/linkedServices/dwh_ldw')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/csv_customer')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "atlas_adls2",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "customers.csv",
+						"folderPath": "atlas",
+						"fileSystem": "root"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/atlas_adls2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/tbl_customer')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "dwh_ldw",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "atlas",
+					"table": "customers"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/dwh_ldw')]"
 			]
 		},
 		{
@@ -132,6 +312,35 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/credentials/dev_spn')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dwh_ldw')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "[parameters('dwh_ldw_properties_typeProperties_server')]",
+					"database": "[parameters('dwh_ldw_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": true,
+					"authenticationType": "ServicePrincipal",
+					"servicePrincipalId": "[parameters('dwh_ldw_properties_typeProperties_servicePrincipalId')]",
+					"servicePrincipalCredential": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "kv",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "devspn"
+					},
+					"tenant": "[parameters('dwh_ldw_properties_typeProperties_tenant')]"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/kv')]"
 			]
 		},
 		{
@@ -171,35 +380,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/dwh_ldw')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureSqlDatabase",
-				"typeProperties": {
-					"server": "[parameters('dwh_ldw_properties_typeProperties_server')]",
-					"database": "[parameters('dwh_ldw_properties_typeProperties_database')]",
-					"encrypt": "mandatory",
-					"trustServerCertificate": true,
-					"authenticationType": "ServicePrincipal",
-					"servicePrincipalId": "[parameters('dwh_ldw_properties_typeProperties_servicePrincipalId')]",
-					"servicePrincipalCredential": {
-						"type": "AzureKeyVaultSecret",
-						"store": {
-							"referenceName": "kv",
-							"type": "LinkedServiceReference"
-						},
-						"secretName": "devspn"
-					},
-					"tenant": "[parameters('dwh_ldw_properties_typeProperties_tenant')]"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/kv')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/dev_spn_azure_sql')]",
 			"type": "Microsoft.DataFactory/factories/credentials",
 			"apiVersion": "2018-06-01",
@@ -223,33 +403,7 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/csv_customer')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "atlas_adls2",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "DelimitedText",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation"
-					},
-					"columnDelimiter": ",",
-					"escapeChar": "\\",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
-				},
-				"schema": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/atlas_adls2')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/tbl_customer')]",
+			"name": "[concat(parameters('factoryName'), '/watermark')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -259,10 +413,20 @@
 				},
 				"annotations": [],
 				"type": "AzureSqlTable",
-				"schema": [],
+				"schema": [
+					{
+						"name": "table_name",
+						"type": "varchar"
+					},
+					{
+						"name": "watermark_datetime",
+						"type": "datetime2",
+						"scale": 7
+					}
+				],
 				"typeProperties": {
-					"schema": "atlas",
-					"table": "customers"
+					"schema": "dbo",
+					"table": "watermark"
 				}
 			},
 			"dependsOn": [
