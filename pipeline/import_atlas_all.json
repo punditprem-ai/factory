@@ -19,7 +19,7 @@
 						"type": "DelimitedTextSource",
 						"storeSettings": {
 							"type": "AzureBlobFSReadSettings",
-							"recursive": true,
+							"fileListPath": "root/atlas/customers.csv",
 							"enablePartitionDiscovery": false
 						},
 						"formatSettings": {
