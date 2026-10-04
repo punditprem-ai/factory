@@ -137,7 +137,42 @@
 					"expression": {
 						"value": "@activity('Get last file stamp').output.firstRow.watermark_datetime<>@activity('Get Latest file stamp').output.lastModified",
 						"type": "Expression"
-					}
+					},
+					"ifTrueActivities": [
+						{
+							"name": "update watermark",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[dbo].[update_watermark]",
+								"storedProcedureParameters": {
+									"table_name": {
+										"value": "atlas.customers",
+										"type": "String"
+									},
+									"watermark_datetime": {
+										"value": {
+											"value": "@activity('Get Latest file stamp').output.lastModified",
+											"type": "Expression"
+										},
+										"type": "Datetime"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "dwh_ldw",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
 				}
 			}
 		],
